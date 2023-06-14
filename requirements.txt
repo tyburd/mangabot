@@ -1,0 +1,14 @@
+aiohttp==3.7.4.post0
+Pyrogram~=2.0.97
+beautifulsoup4~=4.8.0
+Pillow~=9.0.1
+tgcrypto
+sqlmodel~=0.0.6
+asyncpg
+aiosqlite
+fpdf2
+SQLAlchemy~=1.4.31
+psutil~=5.9.0
+telegraph[aio]~=2.1.0
+Pyromod==1.5
+Uvloop
