@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Cloning the repository
-RUN git clone https://github.com/YiZaha0/trash-manga-bot /app
+RUN git clone https://github.com/Yi-Zaha/trash-manga-bot /app
 
 WORKDIR /app
 
