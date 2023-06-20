@@ -38,7 +38,7 @@ class KissMangaClient(MangaClient):
     def chapters_from_page(self, page: bytes, manga: MangaCard = None):
         bs = BeautifulSoup(page, "html.parser")
 
-        lis = ul.findAll("li", {"class": "wp-manga-chapter"})
+        lis = bs.findAll("li", {"class": "wp-manga-chapter"})
 
         items = [li.findNext('a') for li in lis]
 
