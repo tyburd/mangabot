@@ -110,6 +110,12 @@ class KissMangaClient(MangaClient):
         request_url = f'{manga_card.url}'
 
         content = await self.get_url(request_url)
+        
+        mangaID = re.search(rb"var mangaID = '(.*)';", content).group(1).decode()
+        
+        request_url = f"https://mangapure.net/ajax-list-chapter?mangaID={mangaID}"
+        
+        content = await self.get_url(request_url)
 
         for chapter in self.chapters_from_page(content, manga_card):
             yield chapter

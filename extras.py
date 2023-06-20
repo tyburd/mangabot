@@ -8,6 +8,7 @@ from pathlib import Path
 from pyrogram.enums import ParseMode
 from bot import add_manga_options, ALLOWED_USERS, bot, bot_ask, DB, filters, file_options, mangas, Subscription, LastChapter
 
+
 MAX_MESSAGE_LENGTH = 4096
 
 
@@ -21,6 +22,7 @@ def load_plugin(plugin_path: Path):
         spec.loader.exec_module(load)
         sys.modules[name] = load
 
+
 def get_manga_url(url: str):
     for _, manga in mangas.items():
         if manga.get_url() == url:
@@ -28,16 +30,20 @@ def get_manga_url(url: str):
     else:
         return url
 
+
 async def check_last_chapter(url: str):
     db = DB()
     for _, manga in mangas.items():
         if url in [manga.get_url(), manga.url]:
-            if await db.get_subs_by_url(manga.url):
-                if not await db.get(LastChapter, manga.url):
-                    agen = manga.client.iter_chapters(manga.url, manga.name)
-                    lc = await anext(agen)
-                    await db.add(LastChapter(url=manga.url, chapter_url=lc.url))
+            if not await db.get(LastChapter, manga.url):
+                agen = manga.client.iter_chapters(manga.url, manga.name)
+                lc = await anext(agen, None)
+                if lc is None:
+                    return False
+                await db.add(LastChapter(url=manga.url, chapter_url=lc.url))
+                return lc.url
             break
+
 
 @bot.on_message(filters=filters.command("addsub") & filters.user(ALLOWED_USERS), group=1)
 async def addsub_handler(client, message):
