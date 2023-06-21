@@ -780,7 +780,7 @@ async def update_mangas():
                     if client.name == "Manhwa":
                         if url not in bulk_process:
                             bulk_process.append(url)
-                            await asyncios.sleep(5 * 60)
+                            await asyncio.sleep(5 * 60)
                             return await update_mangas()
                         else:
                             await asyncio.sleep(3 * 60)
