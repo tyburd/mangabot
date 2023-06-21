@@ -777,6 +777,15 @@ async def update_mangas():
                     if counter == 20:
                         break
                 if new_chapters:
+                    if client.name == "Manhwa":
+                        if url not in bulk_process:
+                            bulk_process.append(url)
+                            await asyncios.sleep(5 * 60)
+                            return await update_mangas()
+                        else:
+                            await asyncio.sleep(3 * 60)
+                            bulk_process.remove(url)
+                        
                     last_chapter.chapter_url = new_chapters[0].url
                     await db.add(last_chapter)
                     updated[url] = list(reversed(new_chapters))
