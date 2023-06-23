@@ -85,7 +85,7 @@ class ComickClient(MangaClient):
     async def search(self, query: str = "", page: int = 1) -> List[MangaCard]:
         query = quote(query)
 
-        request_url = f'{self.search_url}?type=comic&page={page}&limit=20&tachiyomi=true&{self.search_param}={query}&t=false'
+        request_url = f'{self.search_url}?type=comic&page={page}&limit=20&minimum=1&tachiyomi=true&{self.search_param}={query}&t=false'
 
         content = await self.get_url(request_url)
 
