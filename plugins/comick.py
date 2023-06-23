@@ -103,8 +103,8 @@ class ComickClient(MangaClient):
         
         return self.chapters_from_page(content, manga_card)
     
-    async def iter_chapters(self, manga_url: MangaCard, manga_name) -> AsyncIterable[MangaChapter]:
-        manga_card = ComickMangaCard(self, manga_name, manga_url, '')
+    async def iter_chapters(self, manga_url: str, manga_name) -> AsyncIterable[MangaChapter]:
+        manga_card = MangaCard(self, manga_name, manga_url, '')
         
         request_url = manga_url
         
