@@ -62,6 +62,8 @@ class ComickClient(MangaClient):
         slugs = []
 
         for chapter in data['chapters']:
+            if chapter["chap"] in slugs:
+                continue
             if chapter['title']:
                 texts.append(f'{chapter["chap"]} - {chapter["title"]}')
             else:
