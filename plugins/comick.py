@@ -35,7 +35,7 @@ class ComickClient(MangaClient):
     def __init__(self, *args, name="Comick", language=None, **kwargs):
         if language is None:
             language = "en"
-        super().__init__(*args, name=f'{name}-{language}')
+        super().__init__(*args, name=f'{name}-{language}', headers=self.pre_headers, **kwargs)
         self.lang = language
     
     def mangas_from_page(self, page: bytes):
@@ -149,11 +149,6 @@ class ComickClient(MangaClient):
                 not_updated.append(lc.url)
         
         return updated, not_updated
-
-    async def get_url(self, url, *args, file_name=None, cache=False, req_content=True, method='get', data=None, **kwargs):
-        if "headers" not in kwargs:
-            kwargs["headers"] = self.pre_headers
-        return await super(ComickClient, self).get_url(url, *args, file_name=file_name, cache=cache, req_content=req_content, method=method, **kwargs)
 
     async def get_cover(self, manga_card: MangaCard, *args, **kwargs):
         headers = {**self.pre_headers, 'Referer': self.base_url.geturl()}
