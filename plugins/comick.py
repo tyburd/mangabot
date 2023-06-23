@@ -109,6 +109,9 @@ class ComickClient(MangaClient):
         for chapter in self.chapters_from_page(content, manga_card):
             yield chapter
 
+    async def contains_url(self, url: str):
+        return url.startswith(self.base_url.geturl())
+
     async def check_updated_urls(self, last_chapters: List[LastChapter]):
         content = await self.get_url(f'{self.updates_url}&lang={self.lang}')
 
