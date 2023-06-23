@@ -62,16 +62,16 @@ class ComickClient(MangaClient):
         slugs = []
 
         for chapter in data['chapters']:
-            if chapter["chap"] in slugs:
-                continue
             if chapter['title']:
-                texts.append(f'{chapter["chap"]} - {chapter["title"]}')
+                title = f'{chapter["chap"]} - {chapter["title"]}'
             else:
-                texts.append(chapter["chap"])
-
-            links.append(f'{self.base_url.geturl()}chapter/{chapter["hid"]}?tachiyomi=true')
-
-            slugs.append(f'{chapter["hid"]}-chapter-{chapter["chap"]}-{chapter["lang"]}')
+                title = chapter["chap"]
+            link = f'{self.base_url.geturl()}chapter/{chapter["hid"]}?tachiyomi=true'
+            slug = f'{chapter["hid"]}-chapter-{chapter["chap"]}-{chapter["lang"]}'
+            if title in texts: continue
+            texts.append(title)
+            links.append(link)
+            slugs.append(slug)
 
         return list(map(lambda x: ComickMangaChapter(self, x[0], x[1], manga, [], x[2]), zip(texts, links, slugs)))
 
@@ -101,7 +101,7 @@ class ComickClient(MangaClient):
 
         return self.chapters_from_page(content, manga_card)
 
-    async def iter_chapters(self, manga_url: str, manga_name) -> AsyncIterable[MangaChapter]:
+    async def iter_chapters(self, manga_url: str, manga_name):
         manga_card = MangaCard(self, manga_name, manga_url, '')
 
         request_url = manga_url
