@@ -63,9 +63,11 @@ class ComickClient(MangaClient):
 
         for chapter in data['chapters']:
             title = chapter["chap"] or chapter["title"]
+            if (not title and chapter["vol"]) or title in texts:
+                continue
             link = f'{self.base_url.geturl()}chapter/{chapter["hid"]}?tachiyomi=true'
             slug = f'{chapter["hid"]}-chapter-{chapter["chap"]}-{chapter["lang"]}'
-            if title in texts: continue
+
             texts.append(title)
             links.append(link)
             slugs.append(slug)
