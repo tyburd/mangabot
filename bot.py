@@ -16,7 +16,7 @@ from img2pdf.core import fld2pdf
 from img2tph.core import img2tph
 from plugins import MangaClient, ManhuaKoClient, MangaCard, MangaChapter, ManhuaPlusClient, TMOClient, MangaDexClient, \
     MangaSeeClient, MangasInClient, McReaderClient, MangaKakalotClient, ManganeloClient, ManganatoClient, \
-    KissMangaClient, MangatigreClient, MangaHasuClient, MangaBuddyClient, AsuraScansClient, NineMangaClient, Manhwa18Client
+    KissMangaClient, MangatigreClient, MangaHasuClient, MangaBuddyClient, AsuraScansClient, NineMangaClient, Manhwa18Client, ComickClient
 import os
 
 from pyrogram import Client, filters
@@ -57,6 +57,7 @@ plugin_dicts: Dict[str, Dict[str, MangaClient]] = {
         "AsuraScans": AsuraScansClient(),
         "NineManga": NineMangaClient(),
         "Manhwa18": Manhwa18Client(),
+        "Comick": ComickClient(),
     },
     "🇪🇸 ES": {
         "MangaDex": MangaDexClient(language=("es-la", "es")),

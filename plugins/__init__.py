@@ -16,3 +16,4 @@ from .mangabuddy import MangaBuddyClient
 from .asurascans import AsuraScansClient
 from .ninemanga import NineMangaClient
 from .manhwa18 import Manhwa18Client
+from .comick import ComickClient
