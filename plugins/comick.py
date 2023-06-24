@@ -61,7 +61,7 @@ class ComickClient(MangaClient):
         links = []
         slugs = []
 
-        for chapter in data['chapters']:
+        for chapter in reversed(data['chapters']):
             title = chapter["chap"] or chapter["title"]
             if (not title and chapter["vol"]) or title in texts:
                 continue
@@ -71,6 +71,10 @@ class ComickClient(MangaClient):
             texts.append(title)
             links.append(link)
             slugs.append(slug)
+        
+        texts.reverse()
+        links.reverse()
+        slugs.reverse()
 
         return list(map(lambda x: ComickMangaChapter(self, x[0], x[1], manga, [], x[2]), zip(texts, links, slugs)))
 
