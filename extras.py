@@ -1,3 +1,4 @@
+import asyncio
 import io
 import sys
 import traceback
@@ -31,11 +32,11 @@ def get_manga_url(url: str):
         return url
 
 
-async def check_last_chapter(url: str):
+async def check_last_chapter(url: str, exist_check: bool = True):
     db = DB()
     for _, manga in mangas.items():
         if url in [manga.get_url(), manga.url]:
-            if not await db.get(LastChapter, manga.url):
+            if not exist_check or not await db.get(LastChapter, manga.url):
                 agen = manga.client.iter_chapters(manga.url, manga.name)
                 lc = await anext(agen, None)
                 if lc is None:
@@ -50,8 +51,15 @@ async def addsub_handler(client, message):
     q, a = await bot_ask(message, "Give me the manga url.")
     await q.delete()
     manga_url = get_manga_url(a.text)
-    await check_last_chapter(manga_url)
-        
+    q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer in Yes/No.</i>")
+    exist_check = a.text.lower().strip() in ["y", "yes", "true"]
+    lc_url = await check_last_chapter(manga_url, exist_check=exist_check)
+    if exist_check and lc_url:
+        try: await q.edit(f"Updated the LastChapter → `{lc_url}`")
+        except: pass
+        await asyncio.sleep(1)
+    await q.delete()
+    
     q, a = await bot_ask(message, "Give me the chat ID.")
     await q.delete()
     try:
