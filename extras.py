@@ -32,7 +32,7 @@ def get_manga_url(url: str):
         return url
 
 
-async def check_last_chapter(url: str, exist_check: bool = True):
+async def update_last_chapter(url: str, exist_check: bool = True):
     db = DB()
     for _, manga in mangas.items():
         if url in [manga.get_url(), manga.url]:
@@ -49,19 +49,18 @@ async def check_last_chapter(url: str, exist_check: bool = True):
 @bot.on_message(filters=filters.command("addsub") & filters.user(ALLOWED_USERS), group=1)
 async def addsub_handler(client, message):
     q, a = await bot_ask(message, "Give me the manga url.")
-    await q.delete()
     manga_url = get_manga_url(a.text)
     q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer in Yes/No.</i>")
     exist_check = a.text.lower().strip() in ["y", "yes", "true"]
-    lc_url = await check_last_chapter(manga_url, exist_check=exist_check)
+    lc_url = await update_last_chapter(manga_url, exist_check=exist_check)
     if exist_check and lc_url:
         try: await q.edit(f"Updated the LastChapter → `{lc_url}`")
         except: pass
         await asyncio.sleep(1)
-    await q.delete()
+    else:
+        await q.delete()
     
     q, a = await bot_ask(message, "Give me the chat ID.")
-    await q.delete()
     try:
         manga_chat = int(a.text)
     except ValueError:
@@ -76,7 +75,6 @@ async def addsub_handler(client, message):
         return
         
     q, a = await bot_ask(message, 'Give me the file format for the chapters.\n\nYou can choose in ↓\n\n→<code>PDF</code>\n→<code>CBZ</code>\n→<code>BOTH</code>')
-    await q.delete()
     file_mode = a.text.lower()
     output = file_options.get(file_mode, None)
     if output is None:
