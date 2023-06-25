@@ -34,14 +34,19 @@ def get_manga_url(url: str):
 
 async def update_last_chapter(url: str, exist_check: bool = True):
     db = DB()
+    LC = None
     for _, manga in mangas.items():
         if url in [manga.get_url(), manga.url]:
-            if not exist_check or not await db.get(LastChapter, manga.url):
+            if not (LC := await db.get(LastChapter, manga.url)) or not exist_check:
                 agen = manga.client.iter_chapters(manga.url, manga.name)
                 lc = await anext(agen, None)
                 if lc is None:
                     return False
-                await db.add(LastChapter(url=manga.url, chapter_url=lc.url))
+                if not LC:
+                    LC = LastChapter(url=manga.url, chapter_url=lc.url)
+                else:
+                    LC.chapter_url = lc.url
+                await db.add(LC)
                 return lc.url
             break
 
