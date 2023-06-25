@@ -132,7 +132,7 @@ class ComickClient(MangaClient):
                 content = await self.get_url(f'{self.base_url.geturl()}comic/{manga_id}/chapters?lang={self.lang}&chap={last_chapter}')
                 chapter_item = json.loads(content.decode()).get("chapters", [])
                 if chapter_item:
-                    ch_id = chapter_item[0]["hid"]
+                    ch_id = chapter_item[-1]["hid"]
                 else:
                     ch_id = item["hid"]
             if manga_id not in updates:
