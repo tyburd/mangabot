@@ -125,10 +125,10 @@ class MangaClient(ClientSession, metaclass=LanguageSingleton):
             tasks.append(task)
             i += 1
             
-        for task in tasks:
-            try:
-                await task
-            except BaseException:
+        try:
+            await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
                 await task
        
         return Path(f'cache/{manga_chapter.client.name}') / folder_name
