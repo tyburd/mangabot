@@ -485,7 +485,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", 
             if chapter.client.name == "Manhwa18":
                 ch_name = clean(f'{chapter.name.replace("Chapter", "Ch -").strip()} {clean(chapter.manga.name, 25)}', 40) + ' @Adult_Mangas'
             else:
-                ch_name = clean(f'{chapter.name.replace("Chapter", "Ch -").strip()} {clean(chapter.manga.name, 25)}', 55)
+                ch_name = clean(f'{chapter.name.replace("Chapter", "Ch -").strip()} {clean(chapter.manga.name, 36)}', 55)
             try:
                 pdf, thumb_path = fld2pdf(pictures_folder, ch_name)
             except Exception as e:
