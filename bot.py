@@ -718,7 +718,7 @@ async def update_mangas():
     for subscription in subscriptions:
         if subscription.url not in subs_dictionary:
             subs_dictionary[subscription.url] = []
-        subs_dictionary[subscription.url].append(subscription.user_id)
+        subs_dictionary[subscription.url].append((subscription.user_id), subscription.custom_caption))
 
     for last_chapter in last_chapters:
         chapters_dictionary[last_chapter.url] = last_chapter
@@ -801,14 +801,14 @@ async def update_mangas():
     for url, chapter_list in updated.items():
         for chapter in chapter_list:
             print(f'{chapter.manga.name} - {chapter.name}')
-            for sub in subs_dictionary[url]:
+            for sub, custom_caption in subs_dictionary[url]:
                 if sub in blocked:
                     continue
                 try:
                     try:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="<b>➤ Main Channel : @manga_universe</b>")
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption)
                     except BaseException:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="<b>➤ Main Channel : @manga_universe</b>")
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption)
                 except pyrogram.errors.UserIsBlocked:
                     print(f'User {sub} blocked the bot')
                     await remove_subscriptions(sub)

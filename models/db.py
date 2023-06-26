@@ -1,5 +1,5 @@
 import os
-from typing import Type, List, TypeVar
+from typing import Type, List, TypeVar, Optional
 
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel, Field, Session, select, delete
@@ -26,7 +26,8 @@ class MangaOutput(SQLModel, table=True):
 
 class Subscription(SQLModel, table=True):
     url: str = Field(primary_key=True)
-    user_id: str = Field(primary_key=True)
+    user_id: str = Field
+    custom_captiom: Optional[str]
 
 
 class LastChapter(SQLModel, table=True):

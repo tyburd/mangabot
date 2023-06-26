@@ -87,14 +87,19 @@ async def addsub_handler(client, message):
         return 
 
     await add_manga_options(str(manga_chat), output)
-        
+    
+    q, a = await bot_ask(message, 'Send a custom capion to set on new chapter files.\n\n<i>Reply with /skip to set no caption</i>')
+    custom_caption = a.text.markdown.strip()
+    if custom_caption.lower() in ['/skip', 'none']:
+        custom_caption = ''
+
     db = DB()
     sub = await db.get(Subscription, (manga_url, str(manga_chat)))
     if sub:
         await message.reply("Subscription already exists!")
         return
     
-    await db.add(Subscription(url=manga_url, user_id=str(manga_chat)))
+    await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption))
 
     await message.reply(f"<b>Added New Manga Subscription.</b>\n\n<b>›› Url →</b> <code>{manga_url}</code>\n<b>›› Chat →</b> <code>{manga_chat}</code>\n<b>›› File Mode →</b> <code>{file_mode.upper()}</code>")
 
