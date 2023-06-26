@@ -56,9 +56,9 @@ async def addsub_handler(client, message):
     q, a = await bot_ask(message, "Give me the manga url.")
     manga_url = get_manga_url(a.text)
     q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer in Yes/No.</i>")
-    exist_check = a.text.lower().strip() in ["y", "yes", "true"]
-    lc_url = await update_last_chapter(manga_url, exist_check=not exist_check)
-    if lc_url:
+    exist_check = not a.text.lower().strip() in ["y", "yes", "true"]
+    lc_url = await update_last_chapter(manga_url, exist_check=exist_check)
+    if exist_check and lc_url:
         try: await q.edit(f"Updated the LastChapter → `{lc_url}`")
         except: pass
         await asyncio.sleep(1)
@@ -89,9 +89,9 @@ async def addsub_handler(client, message):
     await add_manga_options(str(manga_chat), output)
     
     q, a = await bot_ask(message, 'Send a custom capion to set on new chapter files.\n\n<i>Reply with /skip to set no caption</i>')
-    custom_caption = a.text.markdown.strip()
+    custom_caption = a.text.html.strip()
     if custom_caption.lower() in ['/skip', 'none']:
-        custom_caption = ''
+        custom_caption = None
 
     db = DB()
     sub = await db.get(Subscription, (manga_url, str(manga_chat)))
@@ -101,7 +101,13 @@ async def addsub_handler(client, message):
     
     await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption))
 
-    await message.reply(f"<b>Added New Manga Subscription.</b>\n\n<b>›› Url →</b> <code>{manga_url}</code>\n<b>›› Chat →</b> <code>{manga_chat}</code>\n<b>›› File Mode →</b> <code>{file_mode.upper()}</code>")
+    text = "<b>Added New Manga Subscription.</b>"
+    text += "\n"
+    text += f"\n<b>›› Url →</b> <code>{manga_url}</code>"
+    text += f"\n<b>›› Chat →</b> <code>{manga_chat}</code>"
+    text += f"\n<b>›› File Mode →</b> <code>{file_mode.upper()}</code>"
+    text += f"\n<b>›› Custom File Caption →</b> <code>{custom_caption}</code>" if custom_caption else ""
+    await message.reply(text)
 
 
 @bot.on_message(filters=filters.command("rmsub") & filters.user(ALLOWED_USERS), group=1)
