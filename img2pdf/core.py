@@ -7,15 +7,13 @@ import re
 
 from PIL import Image
 
-from img2pdf.img_size import get_image_size
-
 
 def fld2pdf(folder: Path, out: str):
     
     files = [file for file in folder.glob(r'*') if re.match(r'.*\.(jpg|png|jpeg|webp)', file.name)]
     files.sort(key=lambda x: x.name)
-    thumb_path = make_thumb(folder, files)
     pdf = folder / f'{out}.pdf'
+    thumb_path = make_thumb(folder, files)
     img2pdf(files, pdf)
     return pdf, thumb_path
 
@@ -52,12 +50,8 @@ def unicode_to_latin1(s):
     s = s.replace('\u201d', '\x94')
     # Substitute the - character
     s = s.replace('\u2013', '\x96')
-    # Substitute the ... character
-    s = s.replace('\u2026', '\x85')
-    # Substitute the ... character
-    s = s.replace('\u2014', '\x97')
-    # Substitute the ... character
-    s = s.replace('\u201c', '\x93')
+    # Remove all other non-latin1 characters
+    s = s.encode('latin1', 'replace').decode('latin1')
     return s
 
 
@@ -74,6 +68,13 @@ def img2pdf(files: List[Path], out: Path):
 
     pdf.set_title(unicode_to_latin1(out.stem))
     pdf.output(out, "F")
+
+
+def fld2thumb(folder: Path):
+    files = [file for file in folder.glob(r'*') if re.match(r'.*\.(jpg|png|jpeg|webp)', file.name)]
+    files.sort(key=lambda x: x.name)
+    thumb_path = make_thumb(folder, files)
+    return thumb_path
 
 
 def make_thumb(folder, files):
