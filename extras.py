@@ -101,13 +101,13 @@ async def addsub_handler(client, message):
     
     await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption))
 
-    text = "<b>Added New Manga Subscription.</b>"
+    text = "**Added New Manga Subscription.**"
     text += "\n"
-    text += f"\n<b>›› Url →</b> <code>{manga_url}</code>"
-    text += f"\n<b>›› Chat →</b> <code>{manga_chat}</code>"
-    text += f"\n<b>›› File Mode →</b> <code>{file_mode.upper()}</code>"
-    text += f"\n<b>›› Custom File Caption →</b> <code>{custom_caption}</code>" if custom_caption else ""
-    await message.reply(text)
+    text += f"\n**›› Url →** `{manga_url}`"
+    text += f"\n**›› Chat →** `{manga_chat}`"
+    text += f"\n**›› File Mode →** `{file_mode.upper()}`"
+    text += f"\n**›› Custom File Caption →** `{custom_caption}`" if custom_caption else ""
+    await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
 @bot.on_message(filters=filters.command("rmsub") & filters.user(ALLOWED_USERS), group=1)
