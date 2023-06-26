@@ -26,7 +26,7 @@ class MangaOutput(SQLModel, table=True):
 
 class Subscription(SQLModel, table=True):
     url: str = Field(primary_key=True)
-    user_id: str = Field
+    user_id: str = Field(primary_key=True)
     custom_captiom: Optional[str]
 
 
