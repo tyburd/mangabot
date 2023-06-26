@@ -439,7 +439,7 @@ async def manga_click(client, callback: CallbackQuery, pagination: Pagination = 
         )
 
 
-async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", Id=None):
+async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None, Id=None):
     if Id and Id not in bulk_process:
         return
     lock = locks.get(chat_id)
@@ -523,7 +523,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", 
 
         chapterFile = await db.get(ChapterFile, chapter.url)
 
-        caption = f'{chapter.manga.name} - {chapter.name}\n' if not str(chat_id).startswith('-100') else custom_caption
+        caption = f'{chapter.manga.name} - {chapter.name}\n' if not str(chat_id).startswith('-100') else (custom_caption or "")
         if options & OutputOptions.Telegraph:
             caption += f'[Read on telegraph]({chapterFile.telegraph_url})\n'
         caption += f'[Read on website]({chapter.get_url()})' if  not str(chat_id).startswith('-100') else ''
