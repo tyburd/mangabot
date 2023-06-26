@@ -56,8 +56,8 @@ async def addsub_handler(client, message):
     q, a = await bot_ask(message, "Give me the manga url.")
     manga_url = get_manga_url(a.text)
     q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer in Yes/No.</i>")
-    exist_check = not a.text.lower().strip() in ["y", "yes", "true"]
-    lc_url = await update_last_chapter(manga_url, exist_check=exist_check)
+    exist_check = a.text.lower().strip() in ["y", "yes", "true"]
+    lc_url = await update_last_chapter(manga_url, exist_check=not exist_check)
     if exist_check and lc_url:
         try: await q.edit(f"Updated the LastChapter → `{lc_url}`")
         except: pass
