@@ -718,7 +718,7 @@ async def update_mangas():
     for subscription in subscriptions:
         if subscription.url not in subs_dictionary:
             subs_dictionary[subscription.url] = []
-        subs_dictionary[subscription.url].append((subscription.user_id), subscription.custom_caption))
+        subs_dictionary[subscription.url].append((subscription.user_id, subscription.custom_caption))
 
     for last_chapter in last_chapters:
         chapters_dictionary[last_chapter.url] = last_chapter
