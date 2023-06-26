@@ -806,9 +806,9 @@ async def update_mangas():
                     continue
                 try:
                     try:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="➤ Main Channel : @manga_universe")
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="<b>➤ Main Channel : @manga_universe</b>")
                     except BaseException:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="➤ Main Channel : @manga_universe")
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="<b>➤ Main Channel : @manga_universe</b>")
                 except pyrogram.errors.UserIsBlocked:
                     print(f'User {sub} blocked the bot')
                     await remove_subscriptions(sub)
