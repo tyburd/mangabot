@@ -475,7 +475,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
 
         db = DB()
 
-        chapterFile = await db.get(ChapterFile, chapter.url) 
+        chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else None
         options = await db.get(MangaOutput, str(chat_id))
         options = options.output if options else (1 << 30) - 1
 
