@@ -132,7 +132,7 @@ async def addsub_handler(client, message):
         await message.reply("Subscription already exists!")
         return
 
-    await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption))
+    await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption, custom_filename=custom_filename))
 
     text = "**Added New Manga Subscription.**"
     text += "\n"
