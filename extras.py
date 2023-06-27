@@ -168,7 +168,7 @@ async def rmsub_handler(client, message):
     await message.reply_text("Removed the subscription.")
 
 
-@bot.on_message(filters=filters.command("setthumb") & filtes.user(ALLOWED_USERS)), group = 1)
+@bot.on_message(filters=filters.command("setthumb") & filtes.user(ALLOWED_USERS), group = 1)
 async def set_manga_thumb(client, message):
     reply=message.reply_to_message
     if len(message.command) < 2 or (not reply and len(message.command) == 2):
