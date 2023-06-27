@@ -177,7 +177,7 @@ async def set_manga_thumb(client, message):
     manga_url, manga_card=get_manga_url(message.command[1])
     if requires_card_or_api(manga_url):
         return await message.reply("To set thumb, please do a quick search of the manga in relevant extension OR provide correct (api) Url.")
-    if reply.photo:
+    if reply and reply.photo:
         temp=await reply.download()
         tclient=Telegraph()
         thumb_url="https://graph.org" + (await tclient.upload_file(temp))[0]["src"]
