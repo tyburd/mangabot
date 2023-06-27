@@ -116,9 +116,8 @@ async def addsub_handler(client, message):
     custom_filename = a.text.strip()
     if custom_filename.lower() in ["/skip", "none"]:
         custom_filename = None
-    else:
-        if "{chapter_title}" not in custom_filename:
-            return await a.reply("Incorrect filename format. You must include the <code>{chapter_title}</code> tag.")
+    elif "{chapter_title}" not in custom_filename:
+        return await a.reply("Incorrect filename format. You must include the <code>{chapter_title}</code> tag.")
 
     q, a = await bot_ask(
         message,
