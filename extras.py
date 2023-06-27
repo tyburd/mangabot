@@ -144,7 +144,7 @@ async def rmsub_handler(client, message):
     except ValueError:
         return
 
-    url = get_manga_url(url)
+    url, card = get_manga_url(url)
     db = DB()
     sub = await db.get(Subscription, (url, chat))
     if not sub:
