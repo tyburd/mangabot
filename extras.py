@@ -192,8 +192,8 @@ async def set_manga_thumb(client, message):
         db_thumb=MangaPicture(manga_url = manga_url, url = thumb_url)
     await db.add(db_thumb)
     text="**Updated the MangaPicture**\n"
-    text += f"\n**››URL →** `{db_thumb.manga_url}`"
-    text += f"\n**››Picture Url →** `{db_thumb.url}`"
+    text += f"\n**››URL →** `{manga_url}`"
+    text += f"\n**››Picture Url →** `{thumb_url}`"
     await message.reply(text)
     if manga_card:
         await get_manga_thumb(manga_card, refresh=True)
