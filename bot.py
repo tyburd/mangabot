@@ -462,7 +462,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
 
         db = DB()
 
-        chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else None
+        chapterFile = await db.get(ChapterFile, chapter.url) 
         options = await db.get(MangaOutput, str(chat_id))
         options = options.output if options else (1 << 30) - 1
 
@@ -526,7 +526,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
 
             shutil.rmtree(pictures_folder)
         
-        chapterFile = await db.get(chapterFile, chapter.url) if not custom_filename else ChapterFile()
+        chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else ChapterFile()
         if download:
             chapterFile.telegraph_url, chapterFile.file_id, chapterFile.cbz_id = telegraph_url, pdf_m.document.file_id, cbz_m.document.file_id
 
