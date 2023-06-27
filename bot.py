@@ -526,8 +526,6 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
 
             shutil.rmtree(pictures_folder)
 
-        chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else None
-
         caption = f'{chapter.manga.name} - {chapter.name}\n' if not str(chat_id).startswith('-100') else (custom_caption or "").format(chapter_title=chapter.name, manga_title=manga.name)
         if options & OutputOptions.Telegraph:
             caption += f'[Read on telegraph]({telegraph_url})\n'
@@ -589,6 +587,16 @@ async def all_page_click(client: Client, callback: CallbackQuery):
         await a.reply_text('Wrong File Format Option. You have to choose between the options i gave.')
         return
     
+    q, a = await bot_ask(
+        message,
+        'Send a custom filename for new chapters in this task.\n\nThis must contain these tags:\n- <code>{chapter_title}</code>\n- <code>{manga_title}</code>\n\ne.g - "<code>{chapter_title} {manga_title}</code>"\n\n<i>/skip</i> <i>to have default filename.</i>'
+    )
+    custom_filename = a.text.strip()
+    if custom_filename.lower() in ["/skip", "none"]:
+        custom_filename = None
+    elif "{chapter_title}" not in custom_filename:
+        return await a.reply("Incorrect filename format. You must include the <code>{chapter_title}</code> tag.")
+
     Id = f"{chat_id}_{manga.unique()}"
     if Id in bulk_process:
         await a.reply_text("Already Uploading this manga in the provided chat ID.")
@@ -609,7 +617,7 @@ async def all_page_click(client: Client, callback: CallbackQuery):
             return
             
         try:
-            await chapter_click(client, None, chat_id, chapter, Id=Id)
+            await chapter_click(client, None, chat_id, chapter, custom_filename=custom_filename, Id=Id)
         except Exception as e:
             print(e)
         await asyncio.sleep(1)

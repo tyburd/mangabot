@@ -139,6 +139,7 @@ async def addsub_handler(client, message):
     text += f"\n**›› URL →** `{manga_url}`"
     text += f"\n**›› Chat →** `{manga_chat}`"
     text += f"\n**›› File Mode →** `{file_mode.upper()}`"
+    text += f"\n**›› Custom.Filename →** `{custom_filename}`" if custom_filename else ""
     text += f"\n**›› Custom File Caption →** `{custom_caption}`" if custom_caption else ""
     await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
