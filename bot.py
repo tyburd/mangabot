@@ -592,7 +592,7 @@ async def all_page_click(client: Client, callback: CallbackQuery):
         return
     
     q, a = await bot_ask(
-        message,
+        callback.message,
         'Send a custom filename for new chapters in this task.\n\nThis must contain these tags:\n- <code>{chapter_title}</code>\n- <code>{manga_title}</code>\n\ne.g - "<code>{chapter_title} {manga_title}</code>"\n\n<i>/skip</i> <i>to have default filename.</i>'
     )
     custom_filename = a.text.strip()
