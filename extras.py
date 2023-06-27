@@ -182,8 +182,11 @@ async def set_manga_thumb(client, message):
         tclient=Telegraph()
         thumb_url="https://graph.org" + (await tclient.upload_file(temp))[0]["src"]
         os.remove(temp)
-    else:
+    elif len(message.command) == 3:
         thumb_url=message.command[2]
+    else:
+        return await message.reply("Either reply to a photo with manga Url or provide both manga Url and thumb Url.")
+
     db=DB()
     db_thumb=await db.get(MangaPicture, manga_url)
     if db_thumb:
@@ -192,8 +195,8 @@ async def set_manga_thumb(client, message):
         db_thumb=MangaPicture(manga_url = manga_url, url = thumb_url)
     await db.add(db_thumb)
     text="**Updated the MangaPicture**\n"
-    text += f"\n**››URL →** `{manga_url}`"
-    text += f"\n**››Picture Url →** `{thumb_url}`"
+    text += f"\n**›› URL →** `{manga_url}`"
+    text += f"\n**›› Picture Url →** `{thumb_url}`"
     await message.reply(text)
     if manga_card:
         await get_manga_thumb(manga_card, refresh=True)
