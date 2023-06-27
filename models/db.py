@@ -41,6 +41,11 @@ class MangaName(SQLModel, table=True):
     name: str = Field
 
 
+class MangaPicture(SQLModel, table=True):
+    manga_url: str = Field(primary_key=True)
+    url: str = Field
+
+
 class DB(metaclass=LanguageSingleton):
     
     def __init__(self, dbname: str = 'sqlite:///test.db'):

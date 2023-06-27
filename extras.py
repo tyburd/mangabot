@@ -1,15 +1,18 @@
+
 import asyncio
 import importlib
 import io
 import logging
+import os
 import sys
 import traceback
 from pathlib import Path
 
-from bot import (ALLOWED_USERS, DB, LastChapter, MangaName, Subscription,
-                 add_manga_options, bot, bot_ask, file_options, filters,
-                 mangas)
+from bot import (ALLOWED_USERS, DB, LastChapter, MangaName, MangaPicture,
+                 Subscription, add_manga_options, bot, bot_ask, file_options,
+                 filters, get_manga_thumb, mangas)
 from pyrogram.enums import ParseMode
+from telegraph.aio import Telegraph
 
 MAX_MESSAGE_LENGTH = 4096
 
@@ -65,11 +68,11 @@ async def addsub_handler(client, message):
     db = DB()
     q, a = await bot_ask(message, "Give me the manga URL.")
     manga_url, manga_card = get_manga_url(a.text)
+    if requires_card_or_api(manga_url):
+        return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension OR provide the correct (api) Url.")
     db_manga = await db.get(MangaName, manga_url)
     if not db_manga and not manga_card:
         return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension.")
-    if not manga_card and requires_card_or_api(manga_url):
-        return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension OR provide the correct (api) URL.")
 
     q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer with Yes or No.</i>")
     exist_check = a.text.lower().strip() in ["y", "yes", "true"]
@@ -108,7 +111,7 @@ async def addsub_handler(client, message):
         return
 
     await add_manga_options(str(manga_chat), output)
-    
+
     q, a = await bot_ask(
         message,
         'Send a custom filename for new chapters in this sub.\n\nThis must contain these tags:\n- <code>{chapter_title}</code>\n- <code>{manga_title}</code>\n\ne.g - "<code>{chapter_title} {manga_title}</code>"\n\n<i>/skip</i> <i>to have default filename.</i>'
@@ -165,59 +168,102 @@ async def rmsub_handler(client, message):
     await message.reply_text("Removed the subscription.")
 
 
-@bot.on_message(filters=filters.command("eval") &
-                filters.user(ALLOWED_USERS), group=1)
+@bot.on_message(filters=filters.command("setthumb") & filtes.user(ALLOWED_USERS)), group = 1)
+async def set_manga_thumb(client, message):
+    reply=message.reply_to_message
+    if len(message.command) < 2 or (not reply and len(message.command) == 2):
+        return await message.reply("Either reply to a photo with the manga Url or provide both ")
+
+    manga_url, manga_card=get_manga_url(message.command[1])
+    if requires_card_or_api(manga_url):
+        return await message.reply("To set thumb, please do a quick search of the manga in relevant extension OR provide correct (api) Url.")
+    if reply.photo:
+        temp=await reply.download()
+        tclient=Telegraph()
+        thumb_url="https://graph.org" + (await tclient.upload(temp))[0]["src"]
+        os.remove(temp)
+    else:
+        thumb_url=message.command[2]
+    db=DB()
+    db_thumb=await db.get(MangaPicture, manga_url)
+    if db_thumb:
+        db_thumb.url=thumb_url
+    else:
+        db_thumb=MangaPicture(manga_url = manga_url, url = thumb_url)
+    await db.add(db_thumb)
+    text="**Updated the MangaPicture**\n"
+    text += f"\n**››URL →** `{db_thumb.manga_url}`"
+    text += f"\n**››Picture Url →** `{db_thumb.url}`"
+    await message.reply(text)
+
+
+@ bot.on_message(filters = filters.command("delthumb") &
+                filters.user(ALLOWED_USERS), group = 1)
+async def del_manga_thumb(client, message):
+    if len(message.command) < 2:
+        return
+    manga_url, manga_card=get_manga_url(message.command[1])
+    db=DB()
+    db_thumb=await db.get(MangaPicture, manga_card)
+    if not db_thumb:
+        return await message.reply("Thumb not found.")
+    await db.erase(db_thumb)
+    await message.reply("Removed the thumb.")
+
+
+@ bot.on_message(filters = filters.command("eval") &
+                filters.user(ALLOWED_USERS), group = 1)
 async def _(client, message):
-    status_message = await message.reply_text("Processing ...")
+    status_message=await message.reply_text("Processing ...")
     try:
-        cmd = message.text.markdown.split(" ", maxsplit=1)[1]
+        cmd=message.text.markdown.split(" ", maxsplit = 1)[1]
     except BaseException:
         return await status_message.edit_text("Give code to evaluate...")
 
-    reply_to_ = message
+    reply_to_=message
     if message.reply_to_message:
-        reply_to_ = message.reply_to_message
+        reply_to_=message.reply_to_message
 
-    old_stderr = sys.stderr
-    old_stdout = sys.stdout
-    redirected_output = sys.stdout = io.StringIO()
-    redirected_error = sys.stderr = io.StringIO()
-    stdout, stderr, exc = None, None, None
+    old_stderr=sys.stderr
+    old_stdout=sys.stdout
+    redirected_output=sys.stdout=io.StringIO()
+    redirected_error=sys.stderr=io.StringIO()
+    stdout, stderr, exc=None, None, None
 
     try:
         await aexec(cmd, client, message)
     except Exception:
-        exc = traceback.format_exc()
+        exc=traceback.format_exc()
 
-    stdout = redirected_output.getvalue()
-    stderr = redirected_error.getvalue()
-    sys.stdout = old_stdout
-    sys.stderr = old_stderr
+    stdout=redirected_output.getvalue()
+    stderr=redirected_error.getvalue()
+    sys.stdout=old_stdout
+    sys.stderr=old_stderr
 
-    evaluation = ""
+    evaluation=""
     if exc:
-        evaluation = exc
+        evaluation=exc
     elif stderr:
-        evaluation = stderr
+        evaluation=stderr
     elif stdout:
-        evaluation = stdout
+        evaluation=stdout
     else:
-        evaluation = "Success"
+        evaluation="Success"
 
-    final_output = "**EVAL**: "
+    final_output="**EVAL**: "
     final_output += f"`{cmd}`\n\n"
     final_output += "**OUTPUT**:\n"
     final_output += f"`{evaluation.strip()}`\n"
 
     if len(final_output) > MAX_MESSAGE_LENGTH:
         with io.BytesIO(str.encode(evaluation)) as out_file:
-            out_file.name = "eval.text"
+            out_file.name="eval.text"
             await reply_to_.reply_document(
-                document=out_file,
-                caption=f"`{cmd[: MAX_MESSAGE_LENGTH // 4 - 1]}`",
-                disable_notification=True,
-                parse_mode=ParseMode.MARKDOWN,
-                quote=True,
+                document = out_file,
+                caption = f"`{cmd[: MAX_MESSAGE_LENGTH // 4 - 1]}`",
+                disable_notification = True,
+                parse_mode = ParseMode.MARKDOWN,
+                quote = True,
             )
     else:
         await reply_to_.reply_text(final_output, parse_mode=ParseMode.MARKDOWN, quote=True)

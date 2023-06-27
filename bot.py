@@ -23,7 +23,7 @@ from pyrogram import Client, filters
 from pyromod import listen
 from typing import Dict, Tuple, List, TypedDict
 
-from models.db import DB, ChapterFile, Subscription, LastChapter, MangaName, MangaOutput
+from models.db import DB, ChapterFile, Subscription, LastChapter, MangaName, MangaOutput, MangaPicture
 from pagination import Pagination
 from plugins.client import clean
 from tools.flood import retry_on_flood
@@ -40,6 +40,7 @@ language_query: Dict[str, Tuple[str, str]] = dict()
 users_in_channel: Dict[int, dt.datetime] = dict()
 locks: Dict[int, asyncio.Lock] = dict()
 file_options: Dict[str, int] = dict(pdf=147483641, cbz=2147483642, both=2147483643)
+manga_thumbs: Dict[str, str] = dict()
 bulk_process: List[str] = list()
 
 plugin_dicts: Dict[str, Dict[str, MangaClient]] = {
@@ -138,19 +139,29 @@ else:
 
 ALLOWED_USERS = list(map(int, env_vars.get('ALLOWED_USERS', '5304356242 5370531116 5551387300 5591954930').split()))
 
-async def get_manga_thumb(manga: MangaCard) -> str:
-	file_name = f'pictures/{manga.unique()}.jpg'
-	picture_path = os.path.join(f'cache/{manga.client.name}', file_name)
-	if os.path.exists(picture_path):
-	    return picture_path
-	
-	if manga.picture_url == '':
-	    return None 
-	
-	await manga.client.get_cover(manga, cache=True, file_name=file_name)
-	
-	return picture_path 
-	
+async def get_manga_thumb(manga: MangaCard, refresh: bool = False) -> str:
+    if not refresh and manga.url in manga_thumbs:
+        if os.path.exists(manga_thumbs[manga.url]):
+            return manga_thumbs[manga.url]
+    
+    db = DB()
+    if db_thumb := await db.get(MangaPicture, manga.url):
+        picture_url = db_thumb.url
+        file_name = f'pictures/{manga.name}.jpg'
+        thumb_path = os.path.join(f'cache/{manga.client.name}', file_name)
+        await manga.client.get_url(picture_url, cache=True, file_name=file_name)
+        manga_thumbs[manga.url] = thumb_path
+    else:
+        if manga.picture_url == '':
+            return None 
+        file_name = f'pictures/{manga.unique()}.jpg'
+        thumb_path = os.path.join(f'cache/{manga.client.name}', file_name)
+        await manga.client.get_cover(manga, cache=True, file_name=file_name)
+        manga_thumbs[manga.url] = thumb_path
+
+    return thumb_path
+
+
 async def add_manga_options(chat_id,  output):
     db = DB()
     chat_options = await db.get(MangaOutput, chat_id)
@@ -164,6 +175,7 @@ async def add_manga_options(chat_id,  output):
         await db.add(chat_options)
     except BaseException as e:
         print(e)
+
 
 async def bot_ask(msg: Message, text: str, quote: bool = False, filters: filters = filters.text, timeout: int = 60):
     request = await msg.reply_text(text, quote=quote)
@@ -179,8 +191,8 @@ async def bot_ask(msg: Message, text: str, quote: bool = False, filters: filters
         raise asyncio.CancelledError
     
     return request, response
-    
-    
+
+
 @bot.on_message(filters=~(filters.private & filters.incoming))
 async def on_chat_or_channel_message(client: Client, message: Message):
     pass
