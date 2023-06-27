@@ -108,6 +108,17 @@ async def addsub_handler(client, message):
         return
 
     await add_manga_options(str(manga_chat), output)
+    
+    q, a = await bot_ask(
+        message,
+        'Send a custom filename for new chapters in this sub.\n\nThis must contain these tags:\n- <code>{chapter_title}</code>\n- <code>{manga_title}</code>\n\ne.g - "<code>{chapter_title} {manga_title}</code>"\n\n<i>/skip</i> <i>to have default filename.</i>'
+    )
+    custom_filename = a.text.strip()
+    if custom_filename.lower() in ["/skip", "none"]:
+        custom_filename = None
+    else:
+        if "{chapter_title}" not in custom_filename:
+            return await a.reply("Incorrect filename format. You must include the <code>{chapter_title}</code> tag.")
 
     q, a = await bot_ask(
         message,

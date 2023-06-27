@@ -28,6 +28,7 @@ class Subscription(SQLModel, table=True):
     url: str = Field(primary_key=True)
     user_id: str = Field(primary_key=True)
     custom_caption: Optional[str]
+    custom_filename: Optional[str]
 
 
 class LastChapter(SQLModel, table=True):

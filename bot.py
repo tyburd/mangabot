@@ -439,7 +439,7 @@ async def manga_click(client, callback: CallbackQuery, pagination: Pagination = 
         )
 
 
-async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None, Id=None):
+async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None, custom_filename=None, Id=None):
     if Id and Id not in bulk_process:
         return
     lock = locks.get(chat_id)
@@ -485,7 +485,12 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
             if chapter.client.name == "Manhwa18":
                 ch_name = clean(f'{chapter.name.replace("Chapter", "Ch -").strip()} {clean(chapter.manga.name, 25)}', 40) + ' @Adult_Mangas'
             else:
-                ch_name = clean(f'{chapter.name.replace("Chapter", "Ch -").strip()} {clean(chapter.manga.name, 36)}', 55)
+                ch_name = custom_filename or "{chapter_title} {manga_title}"
+                ch_name = ch_name.format(
+                    chapter_title=chapter.name.replace("Chapter", "Ch -"),
+                    manga_title=clean(chapter.manga.name, 36),
+                )
+
             try:
                 pdf, thumb_path = fld2pdf(pictures_folder, ch_name)
             except Exception as e:
@@ -512,7 +517,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
                 await db.add(ChapterFile(url=chapter.url, file_id=pdf_m.document.file_id,
                                          file_unique_id=pdf_m.document.file_unique_id, cbz_id=cbz_m.document.file_id,
                                          cbz_unique_id=cbz_m.document.file_unique_id, telegraph_url=telegraph_url))
-            else:
+            elif not custom_filename:
                 chapterFile.file_id, chapterFile.file_unique_id, chapterFile.cbz_id, \
                 chapterFile.cbz_unique_id, chapterFile.telegraph_url = \
                     pdf_m.document.file_id, pdf_m.document.file_unique_id, cbz_m.document.file_id, \
@@ -521,17 +526,17 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
 
             shutil.rmtree(pictures_folder)
 
-        chapterFile = await db.get(ChapterFile, chapter.url)
+        chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else None
 
-        caption = f'{chapter.manga.name} - {chapter.name}\n' if not str(chat_id).startswith('-100') else (custom_caption or "")
+        caption = f'{chapter.manga.name} - {chapter.name}\n' if not str(chat_id).startswith('-100') else (custom_caption or "").format(chapter_title=chapter.name, manga_title=manga.name)
         if options & OutputOptions.Telegraph:
-            caption += f'[Read on telegraph]({chapterFile.telegraph_url})\n'
+            caption += f'[Read on telegraph]({telegraph_url})\n'
         caption += f'[Read on website]({chapter.get_url()})' if  not str(chat_id).startswith('-100') else ''
         media_docs = []
         if options & OutputOptions.PDF:
-            media_docs.append(InputMediaDocument(chapterFile.file_id))
+            media_docs.append(InputMediaDocument(pdf_m.document.file_id))
         if options & OutputOptions.CBZ:
-            media_docs.append(InputMediaDocument(chapterFile.cbz_id))
+            media_docs.append(InputMediaDocument(cbz_m.document.file_id))
 
         if len(media_docs) == 0:
             await retry_on_flood(bot.send_message)(chat_id, caption)
@@ -718,7 +723,7 @@ async def update_mangas():
     for subscription in subscriptions:
         if subscription.url not in subs_dictionary:
             subs_dictionary[subscription.url] = []
-        subs_dictionary[subscription.url].append((subscription.user_id, subscription.custom_caption))
+        subs_dictionary[subscription.url].append((subscription.user_id, subscription.custom_caption, subscription.custom_filename))
 
     for last_chapter in last_chapters:
         chapters_dictionary[last_chapter.url] = last_chapter
@@ -801,14 +806,14 @@ async def update_mangas():
     for url, chapter_list in updated.items():
         for chapter in chapter_list:
             print(f'{chapter.manga.name} - {chapter.name}')
-            for sub, custom_caption in subs_dictionary[url]:
+            for sub, custom_caption, custom_filename in subs_dictionary[url]:
                 if sub in blocked:
                     continue
                 try:
                     try:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption)
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption, custom_filename)
                     except BaseException:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption)
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption, custom_filename)
                 except pyrogram.errors.UserIsBlocked:
                     print(f'User {sub} blocked the bot')
                     await remove_subscriptions(sub)
