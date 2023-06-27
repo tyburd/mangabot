@@ -1,14 +1,15 @@
 import asyncio
+import importlib
 import io
+import logging
 import sys
 import traceback
-import importlib
-import logging
+from pathlib import Path
 
-from pathlib import Path 
+from bot import (ALLOWED_USERS, DB, LastChapter, MangaName, Subscription,
+                 add_manga_options, bot, bot_ask, file_options, filters,
+                 mangas)
 from pyrogram.enums import ParseMode
-from bot import add_manga_options, ALLOWED_USERS, bot, bot_ask, DB, filters, file_options, mangas, Subscription, LastChapter
-
 
 MAX_MESSAGE_LENGTH = 4096
 
@@ -26,10 +27,10 @@ def load_plugin(plugin_path: Path):
 
 def get_manga_url(url: str):
     for _, manga in mangas.items():
-        if manga.get_url() == url:
-            return manga.url
+        if url in [manga.get_url(), manga.url]:
+            return manga.url, manga
     else:
-        return url
+        return url, None
 
 
 async def update_last_chapter(url: str, exist_check: bool = True):
@@ -51,72 +52,98 @@ async def update_last_chapter(url: str, exist_check: bool = True):
             break
 
 
-@bot.on_message(filters=filters.command("addsub") & filters.user(ALLOWED_USERS), group=1)
+def requires_card_or_api(url: str):
+    sites_base = ["comick", "mangadex", "mangabuddy"]
+    for s in sites_base:
+        if s in url and "api" not in url:
+            return True
+
+
+@bot.on_message(filters=filters.command("addsub") &
+                filters.user(ALLOWED_USERS), group=1)
 async def addsub_handler(client, message):
-    q, a = await bot_ask(message, "Give me the manga url.")
-    manga_url = get_manga_url(a.text)
-    q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer in Yes/No.</i>")
+    db = DB()
+    q, a = await bot_ask(message, "Give me the manga URL.")
+    manga_url, manga_card = get_manga_url(a.text)
+    db_manga = await db.get(MangaName, manga_url)
+    if not db_manga and not manga_card:
+        return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension.")
+    if not manga_card and requires_card_or_api(manga_url):
+        return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension OR provide the correct (api) URL.")
+
+    q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer with Yes or No.</i>")
     exist_check = a.text.lower().strip() in ["y", "yes", "true"]
     lc_url = await update_last_chapter(manga_url, exist_check=not exist_check)
     if exist_check and lc_url:
-        try: await q.edit(f"Updated the LastChapter → `{lc_url}`")
-        except: pass
+        try:
+            await q.edit(f"Updated the LastChapter → `{lc_url}`")
+        except BaseException:
+            pass
         await asyncio.sleep(1)
     else:
         await q.delete()
-    
+
     q, a = await bot_ask(message, "Give me the chat ID.")
     try:
         manga_chat = int(a.text)
     except ValueError:
-        await a.reply_text("Chat ID should be an int.")
-        return 
-        
+        await a.reply_text("Chat ID should be an integer.")
+        return
+
     try:
         tmp_msg = await bot.send_message(manga_chat, manga_url)
         await tmp_msg.delete()
     except BaseException:
-        await a.reply_text("Bot couldn't send a message to the provided chat ID. Make sure that bot is added correctly!")
+        await a.reply_text("Bot couldn't send a message to the provided chat ID. Make sure that the bot is added correctly!")
         return
-        
-    q, a = await bot_ask(message, 'Give me the file format for the chapters.\n\nYou can choose in ↓\n\n→<code>PDF</code>\n→<code>CBZ</code>\n→<code>BOTH</code>')
+
+    q, a = await bot_ask(
+        message,
+        "Give me the file format for the chapters.\n\nYou can choose from the following options:\n\n→ <code>PDF</code>\n→ <code>CBZ</code>\n→ <code>BOTH</code>",
+    )
     file_mode = a.text.lower()
     output = file_options.get(file_mode, None)
     if output is None:
-        await a.reply_text('Wrong File Format Option. You have to choose between the options i gave.')
-        return 
+        await a.reply_text("Wrong file format option. You have to choose from the given options.")
+        return
 
     await add_manga_options(str(manga_chat), output)
-    
-    q, a = await bot_ask(message, 'Send a custom capion to set on new chapter files.\n\n<i>Reply with /skip to set no caption</i>')
+
+    q, a = await bot_ask(
+        message,
+        "Send a custom caption to set on new chapter files.\n\n<i>Reply with /skip to set no caption.</i>",
+    )
     custom_caption = a.text.html.strip()
-    if custom_caption.lower() in ['/skip', 'none']:
+    if custom_caption.lower() in ["/skip", "none"]:
         custom_caption = None
 
-    db = DB()
     sub = await db.get(Subscription, (manga_url, str(manga_chat)))
     if sub:
         await message.reply("Subscription already exists!")
         return
-    
+
     await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption))
 
     text = "**Added New Manga Subscription.**"
     text += "\n"
-    text += f"\n**›› Url →** `{manga_url}`"
+    text += f"\n**›› URL →** `{manga_url}`"
     text += f"\n**›› Chat →** `{manga_chat}`"
     text += f"\n**›› File Mode →** `{file_mode.upper()}`"
     text += f"\n**›› Custom File Caption →** `{custom_caption}`" if custom_caption else ""
     await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
+    if not db_manga:
+        await db.add(MangaName(url=manga_url, name=manga_card.name))
 
-@bot.on_message(filters=filters.command("rmsub") & filters.user(ALLOWED_USERS), group=1)
+
+@bot.on_message(filters=filters.command("rmsub") &
+                filters.user(ALLOWED_USERS), group=1)
 async def rmsub_handler(client, message):
     try:
         _, url, chat = message.text.split(" ")
     except ValueError:
-        return 
-    
+        return
+
     url = get_manga_url(url)
     db = DB()
     sub = await db.get(Subscription, (url, chat))
@@ -124,15 +151,16 @@ async def rmsub_handler(client, message):
         await message.reply_text("Subscription doesn't exist!")
         return
     await db.erase(sub)
-    await message.reply_text("Removed the Subscription.")
-    
-    
-@bot.on_message(filters=filters.command("eval") & filters.user(ALLOWED_USERS), group=1)
+    await message.reply_text("Removed the subscription.")
+
+
+@bot.on_message(filters=filters.command("eval") &
+                filters.user(ALLOWED_USERS), group=1)
 async def _(client, message):
     status_message = await message.reply_text("Processing ...")
     try:
         cmd = message.text.markdown.split(" ", maxsplit=1)[1]
-    except:
+    except BaseException:
         return await status_message.edit_text("Give code to evaluate...")
 
     reply_to_ = message
@@ -183,6 +211,7 @@ async def _(client, message):
     else:
         await reply_to_.reply_text(final_output, parse_mode=ParseMode.MARKDOWN, quote=True)
     await status_message.delete()
+
 
 async def aexec(code, client, message):
     exec(
