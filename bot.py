@@ -315,7 +315,7 @@ async def on_options_command(client: Client, message: Message):
 
 @bot.on_message(filters=filters.regex(r'^/'))
 async def on_unknown_command(client: Client, message: Message):
-    if message.text.lower().split(" ")[0] not in ["/eval", "/addsub", "/rmsub"]:
+    if message.text.lower().split(" ")[0] not in ["/eval", "/addsub", "/rmsub", "/setthumb", "/delthumb"]:
         await message.reply("Unknown command")
 
 

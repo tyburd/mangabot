@@ -171,7 +171,7 @@ async def rmsub_handler(client, message):
 @bot.on_message(filters=filters.command("setthumb") & filters.user(ALLOWED_USERS), group = 1)
 async def set_manga_thumb(client, message):
     reply=message.reply_to_message
-    if len(message.command) < 2 or (not reply and len(message.command) == 2):
+    if len(message.command) < 2:
         return await message.reply("Either reply to a photo with manga Url or provide both manga Url and thumb Url.")
 
     manga_url, manga_card=get_manga_url(message.command[1])
@@ -180,7 +180,7 @@ async def set_manga_thumb(client, message):
     if reply.photo:
         temp=await reply.download()
         tclient=Telegraph()
-        thumb_url="https://graph.org" + (await tclient.upload(temp))[0]["src"]
+        thumb_url="https://graph.org" + (await tclient.upload_file(temp))[0]["src"]
         os.remove(temp)
     else:
         thumb_url=message.command[2]
