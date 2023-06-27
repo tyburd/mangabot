@@ -156,7 +156,8 @@ async def get_manga_thumb(manga: MangaCard, refresh: bool = False) -> str:
             return None 
         file_name = f'pictures/{manga.unique()}.jpg'
         thumb_path = os.path.join(f'cache/{manga.client.name}', file_name)
-        await manga.client.get_cover(manga, cache=True, file_name=file_name)
+        if not os.path.exists(thumb_path):
+            await manga.client.get_cover(manga, cache=True, file_name=file_name)
         manga_thumbs[manga.url] = thumb_path
 
     return thumb_path

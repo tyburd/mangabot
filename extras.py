@@ -195,9 +195,11 @@ async def set_manga_thumb(client, message):
     text += f"\n**››URL →** `{db_thumb.manga_url}`"
     text += f"\n**››Picture Url →** `{db_thumb.url}`"
     await message.reply(text)
+    if manga_card:
+        await get_manga_thumb(manga_card, refresh=True)
 
 
-@ bot.on_message(filters = filters.command("delthumb") &
+@bot.on_message(filters = filters.command("delthumb") &
                 filters.user(ALLOWED_USERS), group = 1)
 async def del_manga_thumb(client, message):
     if len(message.command) < 2:
@@ -209,9 +211,11 @@ async def del_manga_thumb(client, message):
         return await message.reply("Thumb not found.")
     await db.erase(db_thumb)
     await message.reply("Removed the thumb.")
+    if manga_card:
+        await get_manga_thumb(manga_card, refresh=True)
 
 
-@ bot.on_message(filters = filters.command("eval") &
+@bot.on_message(filters = filters.command("eval") &
                 filters.user(ALLOWED_USERS), group = 1)
 async def _(client, message):
     status_message=await message.reply_text("Processing ...")
