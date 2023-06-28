@@ -50,7 +50,7 @@ class ComickClient(MangaClient):
         for card in data:
             names.append(card['title'])
             urls.append(f'{self.base_url.geturl()}comic/{card["hid"]}/chapters?lang={self.lang}')
-            images.append(urljoin(self.covers_url.geturl(), card["md_covers"][0]["b2_key"]))
+            images.append(urljoin(self.covers_url.geturl(), card["md_covers"][0]["b2key"]))
             slugs.append(card['slug'])
 
         return [ComickMangaCard(self, *tup) for tup in zip(names, urls, images, slugs)]
