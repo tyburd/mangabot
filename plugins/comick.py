@@ -27,6 +27,7 @@ class ComickClient(MangaClient):
     search_url = urljoin(base_url.geturl(), "v1.0/search")
     search_param = "q"
     updates_url = "https://api.comick.app/chapter/?page=1&order=new&tachiyomi=true&accept_erotic_content=true"
+    covers_url = urlparse("https://meo.comick.pictures/")
 
     pre_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:97.0) Gecko/20100101 Firefox/97.0'
@@ -49,7 +50,7 @@ class ComickClient(MangaClient):
         for card in data:
             names.append(card['title'])
             urls.append(f'{self.base_url.geturl()}comic/{card["hid"]}/chapters?lang={self.lang}')
-            images.append(card['cover_url'])
+            images.append(urljoin(self.covers_url.geturl(), card["md_covers"][0]["b2_key"]))
             slugs.append(card['slug'])
 
         return [ComickMangaCard(self, *tup) for tup in zip(names, urls, images, slugs)]
