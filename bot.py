@@ -523,11 +523,11 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
 
             shutil.rmtree(pictures_folder)
         
-        chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else ChapterFile()
+        #chapterFile = await db.get(ChapterFile, chapter.url) if not custom_filename else ChapterFile()
         if download:
             chapterFile.telegraph_url, chapterFile.file_id, chapterFile.cbz_id = telegraph_url, pdf_m.document.file_id, cbz_m.document.file_id
 
-        caption = f'{chapter.manga.name} - {chapter.name}\n' if not str(chat_id).startswith('-100') else (custom_caption or "").format(chapter_title=chapter.name, manga_title=chapter.manga.name)
+        caption = f'{chapter.name.replace("Chapter", "Ch-")} - {chapter.manga.name}\n' if not str(chat_id).startswith('-100') else (custom_caption or "").format(chapter_title=chapter.name, manga_title=chapter.manga.name)
         if options & OutputOptions.Telegraph:
             caption += f'[Read on telegraph]({chapterFile.telegraph_url})\n'
         caption += f'[Read on website]({chapter.get_url()})' if  not str(chat_id).startswith('-100') else ''
