@@ -519,7 +519,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
                 chapterFile.cbz_unique_id, chapterFile.telegraph_url = \
                     pdf_m.document.file_id, pdf_m.document.file_unique_id, cbz_m.document.file_id, \
                     cbz_m.document.file_unique_id, telegraph_url
-                await db.add(chapterFile)
+                #await db.add(chapterFile)
 
             shutil.rmtree(pictures_folder)
         
