@@ -20,15 +20,13 @@ class ChapterFile(SQLModel, table=True):
 
 
 class MangaOutput(SQLModel, table=True):
-    user_id: str = Field(primary_key=True)
+    user_id: str = Field(primary_key=True, regex=r'\d+')
     output: int = Field
 
 
 class Subscription(SQLModel, table=True):
     url: str = Field(primary_key=True)
-    user_id: str = Field(primary_key=True)
-    custom_caption: Optional[str]
-    custom_filename: Optional[str]
+    user_id: str = Field(primary_key=True, regex=r'\d+')
 
 
 class LastChapter(SQLModel, table=True):
@@ -39,11 +37,6 @@ class LastChapter(SQLModel, table=True):
 class MangaName(SQLModel, table=True):
     url: str = Field(primary_key=True)
     name: str = Field
-
-
-class MangaPicture(SQLModel, table=True):
-    manga_url: str = Field(primary_key=True)
-    url: str = Field
 
 
 class DB(metaclass=LanguageSingleton):
@@ -86,9 +79,15 @@ class DB(metaclass=LanguageSingleton):
                                                   (ChapterFile.telegraph_url == id))
             return (await session.exec(statement=statement)).first()
 
-    async def get_subs(self, user_id: str) -> List[MangaName]:
+    async def get_subs(self, user_id: str, filters=None) -> List[MangaName]:
         async with AsyncSession(self.engine) as session:
-            statement = select(MangaName).where(Subscription.user_id == user_id).where(Subscription.url == MangaName.url)
+            statement = (
+                select(MangaName)
+                .join(Subscription, Subscription.url == MangaName.url)
+                .where(Subscription.user_id == user_id)
+            )
+            for filter_ in filters or []:
+                statement = statement.where(MangaName.name.ilike(f'%{filter_}%') | MangaName.url.ilike(f'%{filter_}%'))
             return (await session.exec(statement=statement)).all()
     
     async def get_subs_by_url(self, url: str) -> List[MangaName]:
