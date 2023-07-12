@@ -12,3 +12,4 @@ psutil~=5.9.0
 telegraph[aio]~=2.1.0
 Pyromod==1.5
 Uvloop
+loguru
