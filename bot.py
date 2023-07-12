@@ -23,7 +23,7 @@ from pyrogram import Client, filters
 from pyromod import listen
 from typing import Dict, Tuple, List, TypedDict
 
-from models.db import DB, ChapterFile, Subscription, LastChapter, MangaName, MangaOutput, MangaPicture
+from models.db import DB, ChapterFile, Subscription, LastChapter, MangaName, MangaOutput
 from pagination import Pagination
 from plugins.client import clean
 from tools.flood import retry_on_flood
