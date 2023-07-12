@@ -423,7 +423,8 @@ async def manga_click(client, callback: CallbackQuery, pagination: Pagination = 
 
     buttons = InlineKeyboardMarkup(fav + footer + [
         [InlineKeyboardButton(result.name, result.unique())] for result in results
-    ] + full_page + all_page + footer)
+    ] + full_page + footer)
+
 
     if pagination.message is None:
         try:
