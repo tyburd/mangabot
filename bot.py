@@ -19,6 +19,7 @@ from plugins import MangaClient, ManhuaKoClient, MangaCard, MangaChapter, Manhua
     KissMangaClient, MangatigreClient, MangaHasuClient, MangaBuddyClient, AsuraScansClient, NineMangaClient, Manhwa18Client, ComickClient
 import os
 
+from loguru import logger
 from pyrogram import Client, filters
 from pyromod import listen
 from typing import Dict, Tuple, List, TypedDict
