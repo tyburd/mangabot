@@ -23,7 +23,7 @@ from pyrogram import Client, filters
 from pyromod import listen
 from typing import Dict, Tuple, List, TypedDict
 
-from models.db import DB, ChapterFile, Subscription, LastChapter, MangaName, MangaOutput
+from models.db import DB, ChapterFile, Subscription, LastChapter, MangaName, MangaOutput, MangaPicture
 from pagination import Pagination
 from plugins.client import clean
 from tools.flood import retry_on_flood
@@ -40,6 +40,7 @@ language_query: Dict[str, Tuple[str, str]] = dict()
 users_in_channel: Dict[int, dt.datetime] = dict()
 locks: Dict[int, asyncio.Lock] = dict()
 file_options: Dict[str, int] = dict(pdf=147483641, cbz=2147483642, both=2147483643)
+manga_thumbs: Dict[str, str] = dict()
 bulk_process: List[str] = list()
 
 plugin_dicts: Dict[str, Dict[str, MangaClient]] = {
@@ -57,7 +58,7 @@ plugin_dicts: Dict[str, Dict[str, MangaClient]] = {
         "AsuraScans": AsuraScansClient(),
         "NineManga": NineMangaClient(),
         "Manhwa18": Manhwa18Client(),
-	"Comick": ComickClient(),    
+        "Comick": ComickClient(),
     },
     "🇪🇸 ES": {
         "MangaDex": MangaDexClient(language=("es-la", "es")),
@@ -138,19 +139,30 @@ else:
 
 #ALLOWED_USERS = list(map(int, env_vars.get('ALLOWED_USERS', '5304356242 5370531116 5551387300 5591954930').split()))
 
-async def get_manga_thumb(manga: MangaCard) -> str:
-	file_name = f'pictures/{manga.unique()}.jpg'
-	picture_path = os.path.join(f'cache/{manga.client.name}', file_name)
-	if os.path.exists(picture_path):
-	    return picture_path
-	
-	if manga.picture_url == '':
-	    return None 
-	
-	await manga.client.get_cover(manga, cache=True, file_name=file_name)
-	
-	return picture_path 
-	
+async def get_manga_thumb(manga: MangaCard, refresh: bool = False) -> str:
+    if not refresh and manga.url in manga_thumbs:
+        if os.path.exists(manga_thumbs[manga.url]):
+            return manga_thumbs[manga.url]
+    
+    db = DB()
+    if db_thumb := await db.get(MangaPicture, manga.url):
+        picture_url = db_thumb.url
+        file_name = f'pictures/{manga.name}.jpg'
+        thumb_path = os.path.join(f'cache/{manga.client.name}', file_name)
+        await manga.client.get_url(picture_url, cache=True, file_name=file_name)
+        manga_thumbs[manga.url] = thumb_path
+    else:
+        file_name = f'pictures/{manga.unique()}.jpg'
+        thumb_path = os.path.join(f'cache/{manga.client.name}', file_name)
+        if not os.path.exists(thumb_path):
+            if manga.picture_url == '':
+                return None
+            await manga.client.get_cover(manga, cache=True, file_name=file_name)
+        manga_thumbs[manga.url] = thumb_path
+
+    return thumb_path
+
+
 async def add_manga_options(chat_id,  output):
     db = DB()
     chat_options = await db.get(MangaOutput, chat_id)
@@ -164,6 +176,7 @@ async def add_manga_options(chat_id,  output):
         await db.add(chat_options)
     except BaseException as e:
         print(e)
+
 
 async def bot_ask(msg: Message, text: str, quote: bool = False, filters: filters = filters.text, timeout: int = 60):
     request = await msg.reply_text(text, quote=quote)
@@ -179,8 +192,8 @@ async def bot_ask(msg: Message, text: str, quote: bool = False, filters: filters
         raise asyncio.CancelledError
     
     return request, response
-    
-    
+
+
 @bot.on_message(filters=~(filters.private & filters.incoming))
 async def on_chat_or_channel_message(client: Client, message: Message):
     pass
@@ -254,25 +267,29 @@ async def on_refresh(client: Client, message: Message):
 @bot.on_message(filters=filters.command(['subs']))
 async def on_subs(client: Client, message: Message):
     db = DB()
-
-    filter_ = message.text.split(maxsplit=1)[1] if message.text.split(maxsplit=1)[1:] else ''
-    filter_list = [filter_.strip() for filter_ in filter_.split(' ') if filter_.strip()]
-
-    subs = await db.get_subs(str(message.from_user.id), filter_list)
-
+    subs = await db.get_subs(str(message.from_user.id))
     lines = []
-    for sub in subs[:10]:
+    for sub in subs:
         lines.append(f'<a href="{sub.url}">{sub.name}</a>')
         lines.append(f'`/cancel {sub.url}`')
         lines.append('')
 
     if not lines:
-        if filter_:
-            return await message.reply("You have no subscriptions with that filter.")
         return await message.reply("You have no subscriptions yet.")
 
-    text = "\n".join(lines)
-    await message.reply(f'Your subscriptions:\n\n{text}\nTo see more subscriptions use `/subs filter`', disable_web_page_preview=True)
+    body = []
+    counter = 0
+    for line in lines:
+        if counter + len(line) > 4000:
+            text = "\n".join(body)
+            await message.reply(f'Your subscriptions:\n\n{text}', disable_web_page_preview=True)
+            body = []
+            counter = 0
+        body.append(line)
+        counter += len(line)
+
+    text = "\n".join(body)
+    await message.reply(f'Your subscriptions:\n\n{text}', disable_web_page_preview=True)
 
 
 @bot.on_message(filters=filters.regex(r'^/cancel ([^ ]+)$'))
@@ -296,7 +313,7 @@ async def on_options_command(client: Client, message: Message):
 
 @bot.on_message(filters=filters.regex(r'^/'))
 async def on_unknown_command(client: Client, message: Message):
-    if message.text.lower().split(" ")[0] not in ["/eval", "/addsub", "/rmsub"]:
+    if message.text.lower().split(" ")[0] not in ["/eval", "/addsub", "/rmsub", "/setthumb", "/delthumb"]:
         await message.reply("Unknown command")
 
 
@@ -394,7 +411,7 @@ async def manga_click(client, callback: CallbackQuery, pagination: Pagination = 
     buttons = InlineKeyboardMarkup(fav + footer + [
         [InlineKeyboardButton(result.name, result.unique())] for result in results
     ] + full_page + footer)
-
+	
     if pagination.message is None:
         try:
             message = await bot.send_photo(callback.from_user.id,
@@ -422,7 +439,7 @@ async def manga_click(client, callback: CallbackQuery, pagination: Pagination = 
         )
 
 
-async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", Id=None):
+async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None, custom_filename=None, Id=None):
     if Id and Id not in bulk_process:
         return
     lock = locks.get(chat_id)
@@ -445,7 +462,7 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", 
 
         db = DB()
 
-        chapterFile = None # await db.get(ChapterFile, chapter.url)
+        chapterFile = None #await db.get(ChapterFile, chapter.url) if not custom_filename else None
         options = await db.get(MangaOutput, str(chat_id))
         options = options.output if options else (1 << 30) - 1
 
@@ -465,6 +482,14 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", 
             if not chapter.pictures:
                 return await bot.send_message(chat_id, f'There was an error parsing this chapter or chapter is missing' +
                                               f', please check the chapter at the web\n\n{caption}')
+            if chapter.client.name == "Manhwa18":
+                ch_name = clean(f'{chapter.name.replace("Chapter", "Ch -").strip()} {clean(chapter.manga.name, 25)}', 40) + ' @Adult_Mangas'
+            else:
+                ch_name = custom_filename or "{chapter_title} {manga_title}"
+                ch_name = ch_name.format(
+                    chapter_title=chapter.name.replace("Chapter", "Ch -"),
+                    manga_title=clean(chapter.manga.name, 36),
+                )
 
             try:
                 pdf, thumb_path = fld2pdf(pictures_folder, ch_name)
@@ -525,7 +550,6 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption="", 
         await asyncio.sleep(1)
 
 
-
 async def pagination_click(client: Client, callback: CallbackQuery):
     pagination_id, page = map(int, callback.data.split('_'))
     pagination = paginations[pagination_id]
@@ -567,6 +591,16 @@ async def all_page_click(client: Client, callback: CallbackQuery):
         await a.reply_text('Wrong File Format Option. You have to choose between the options i gave.')
         return
     
+    q, a = await bot_ask(
+        callback.message,
+        'Send a custom filename for new chapters in this task.\n\nThis must contain these tags:\n- <code>{chapter_title}</code>\n- <code>{manga_title}</code>\n\ne.g - "<code>{chapter_title} {manga_title}</code>"\n\n<i>/skip</i> <i>to have default filename.</i>'
+    )
+    custom_filename = a.text.strip()
+    if custom_filename.lower() in ["/skip", "none"]:
+        custom_filename = None
+    elif "{chapter_title}" not in custom_filename:
+        return await a.reply("Incorrect filename format. You must include the <code>{chapter_title}</code> tag.")
+
     Id = f"{chat_id}_{manga.unique()}"
     if Id in bulk_process:
         await a.reply_text("Already Uploading this manga in the provided chat ID.")
@@ -587,7 +621,7 @@ async def all_page_click(client: Client, callback: CallbackQuery):
             return
             
         try:
-            await chapter_click(client, None, chat_id, chapter, Id=Id)
+            await chapter_click(client, None, chat_id, chapter, custom_filename=custom_filename, Id=Id)
         except Exception as e:
             print(e)
         await asyncio.sleep(1)
@@ -622,9 +656,9 @@ async def favourite_click(client: Client, callback: CallbackQuery):
     )]
     await bot.edit_message_reply_markup(callback.from_user.id, callback.message.id,
                                         InlineKeyboardMarkup(keyboard))
-    db_manga = await db.get(MangaName, manga.url)
-    if not db_manga:
-        await db.add(MangaName(url=manga.url, name=manga.name))
+    #db_manga = await db.get(MangaName, manga.url)
+    #if not db_manga:
+        #await db.add(MangaName(url=manga.url, name=manga.name))
 
 
 def is_pagination_data(callback: CallbackQuery):
@@ -701,7 +735,7 @@ async def update_mangas():
     for subscription in subscriptions:
         if subscription.url not in subs_dictionary:
             subs_dictionary[subscription.url] = []
-        subs_dictionary[subscription.url].append(subscription.user_id)
+        subs_dictionary[subscription.url].append((subscription.user_id, subscription.custom_caption, subscription.custom_filename))
 
     for last_chapter in last_chapters:
         chapters_dictionary[last_chapter.url] = last_chapter
@@ -761,6 +795,15 @@ async def update_mangas():
                     if counter == 20:
                         break
                 if new_chapters:
+                    if client.name == "Manhwa":
+                        if url not in bulk_process:
+                            bulk_process.append(url)
+                            await asyncio.sleep(5 * 60)
+                            return await update_mangas()
+                        else:
+                            await asyncio.sleep(3 * 60)
+                            bulk_process.remove(url)
+                        
                     last_chapter.chapter_url = new_chapters[0].url
                     await db.add(last_chapter)
                     updated[url] = list(reversed(new_chapters))
@@ -775,14 +818,14 @@ async def update_mangas():
     for url, chapter_list in updated.items():
         for chapter in chapter_list:
             print(f'{chapter.manga.name} - {chapter.name}')
-            for sub in subs_dictionary[url]:
+            for sub, custom_caption, custom_filename in subs_dictionary[url]:
                 if sub in blocked:
                     continue
                 try:
                     try:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="➤ Main Channel : @manga_universe")
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption, custom_filename=custom_filename)
                     except BaseException:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption="➤ Main Channel : @manga_universe")
+                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption, custom_filename=custom_filename)
                 except pyrogram.errors.UserIsBlocked:
                     print(f'User {sub} blocked the bot')
                     await remove_subscriptions(sub)
