@@ -499,8 +499,6 @@ async def chapter_click(client, data, chat_id, chapter=None, custom_caption=None
                 return await bot.send_message(chat_id, f'There was an error making the pdf for this chapter. '
                                                        f'Please contact the developer with the name of the manga'
                                                        f' and the chapter number.')
-            if thumbnail:
-                thumb_path = thumbnail
                 
             cbz = fld2cbz(pictures_folder, ch_name)
             telegraph_url = await img2tph(chapter, clean(f'{chapter.manga.name} {chapter.name}'))
