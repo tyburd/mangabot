@@ -735,7 +735,7 @@ async def update_mangas():
     for subscription in subscriptions:
         if subscription.url not in subs_dictionary:
             subs_dictionary[subscription.url] = []
-        subs_dictionary[subscription.url].append((subscription.user_id, subscription.custom_caption, subscription.custom_filename))
+        subs_dictionary[subscription.url].append(subscription.user_id)
 
     for last_chapter in last_chapters:
         chapters_dictionary[last_chapter.url] = last_chapter
@@ -817,21 +817,18 @@ async def update_mangas():
     blocked = set()
     for url, chapter_list in updated.items():
         for chapter in chapter_list:
-            print(f'{chapter.manga.name} - {chapter.name}')
-            for sub, custom_caption, custom_filename in subs_dictionary[url]:
+            logger.debug(f'Updating {chapter.manga.name} - {chapter.name}')
+            for sub in subs_dictionary[url]:
                 if sub in blocked:
                     continue
                 try:
-                    try:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption, custom_filename=custom_filename)
-                    except BaseException:
-                        await chapter_click(bot, chapter.unique(), int(sub), custom_caption=custom_caption, custom_filename=custom_filename)
+                    await send_manga_chapter(bot, chapter.unique(), int(sub))
                 except pyrogram.errors.UserIsBlocked:
-                    print(f'User {sub} blocked the bot')
+                    logger.info(f'User {sub} blocked the bot')
                     await remove_subscriptions(sub)
                     blocked.add(sub)
                 except BaseException as e:
-                    print(f'An exception occurred sending new chapter: {e}')
+                    logger.exception(f'An exception occurred sending new chapter: {e}')
                 await asyncio.sleep(0.5)
             await asyncio.sleep(1)
 
