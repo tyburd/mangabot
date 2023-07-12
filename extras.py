@@ -1,22 +1,16 @@
-
-import asyncio
-import importlib
 import io
-import logging
-import os
 import sys
 import traceback
-from pathlib import Path
+import importlib
+import logging
 
-from bot import (ALLOWED_USERS, DB, LastChapter, MangaName, MangaPicture,
-                 Subscription, add_manga_options, bot, bot_ask, file_options,
-                 filters, get_manga_thumb, mangas)
+from pathlib import Path 
 from pyrogram.enums import ParseMode
-from telegraph.aio import Telegraph
+from bot import add_manga_options, bot, bot_ask, DB, filters, file_options, mangas, Subscription, LastChapter
 
 MAX_MESSAGE_LENGTH = 4096
 
-
+ALLOWED_USERS = 5591954930
 def load_plugin(plugin_path: Path):
     plugin_name = plugin_path.stem
     if not plugin_name.startswith("__"):
@@ -27,255 +21,140 @@ def load_plugin(plugin_path: Path):
         spec.loader.exec_module(load)
         sys.modules[name] = load
 
-
 def get_manga_url(url: str):
     for _, manga in mangas.items():
-        if url in [manga.get_url(), manga.url]:
-            return manga.url, manga
+        if manga.get_url() == url:
+            return manga.url
     else:
-        return url, None
+        return url
 
-
-async def update_last_chapter(url: str, exist_check: bool = True):
+async def check_last_chapter(url: str):
     db = DB()
-    LC = None
     for _, manga in mangas.items():
         if url in [manga.get_url(), manga.url]:
-            if not (LC := await db.get(LastChapter, manga.url)) or not exist_check:
-                agen = manga.client.iter_chapters(manga.url, manga.name)
-                lc = await anext(agen, None)
-                if lc is None:
-                    return False
-                if not LC:
-                    LC = LastChapter(url=manga.url, chapter_url=lc.url)
-                else:
-                    LC.chapter_url = lc.url
-                await db.add(LC)
-                return lc.url
+            if await db.get_subs_by_url(manga.url):
+                if not await db.get(LastChapter, manga.url):
+                    agen = manga.client.iter_chapters(manga.url, manga.name)
+                    lc = await anext(agen)
+                    await db.add(LastChapter(url=manga.url, chapter_url=lc.url))
             break
 
-
-def requires_card_or_api(url: str):
-    sites_base = ["comick", "mangadex", "mangabuddy"]
-    for s in sites_base:
-        if s in url and "api" not in url:
-            return True
-
-
-@bot.on_message(filters=filters.command("addsub") &
-                filters.user(ALLOWED_USERS), group=1)
+@bot.on_message(filters=filters.command("addsub") & filters.user(ALLOWED_USERS), group=1)
 async def addsub_handler(client, message):
-    db = DB()
-    q, a = await bot_ask(message, "Give me the manga URL.")
-    manga_url, manga_card = get_manga_url(a.text)
-    if requires_card_or_api(manga_url):
-        return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension OR provide the correct (api) Url.")
-    db_manga = await db.get(MangaName, manga_url)
-    if not db_manga and not manga_card:
-        return await a.reply("To subscribe to this manga, kindly perform a quick search in the relevant extension.")
-
-    q, a = await bot_ask(message, "Do you want to forcefully update the LastChapter table?\n\n<i>Answer with Yes or No.</i>")
-    exist_check = a.text.lower().strip() in ["y", "yes", "true"]
-    lc_url = await update_last_chapter(manga_url, exist_check=not exist_check)
-    if exist_check and lc_url:
-        try:
-            await q.edit(f"Updated the LastChapter → `{lc_url}`")
-        except BaseException:
-            pass
-        await asyncio.sleep(1)
-    else:
-        await q.delete()
-
+    q, a = await bot_ask(message, "Give me the manga url.")
+    await q.delete()
+    manga_url = get_manga_url(a.text)
+    await check_last_chapter(manga_url)
+        
     q, a = await bot_ask(message, "Give me the chat ID.")
+    await q.delete()
     try:
         manga_chat = int(a.text)
     except ValueError:
-        await a.reply_text("Chat ID should be an integer.")
-        return
-
+        await a.reply_text("Chat ID should be an int.")
+        return 
+        
     try:
         tmp_msg = await bot.send_message(manga_chat, manga_url)
         await tmp_msg.delete()
     except BaseException:
-        await a.reply_text("Bot couldn't send a message to the provided chat ID. Make sure that the bot is added correctly!")
+        await a.reply_text("Bot couldn't send a message to the provided chat ID. Make sure that bot is added correctly!")
         return
-
-    q, a = await bot_ask(
-        message,
-        "Give me the file format for the chapters.\n\nYou can choose from the following options:\n\n→ <code>PDF</code>\n→ <code>CBZ</code>\n→ <code>BOTH</code>",
-    )
+        
+    q, a = await bot_ask(message, 'Give me the file format for the chapters.\n\nYou can choose in ↓\n\n→<code>PDF</code>\n→<code>CBZ</code>\n→<code>BOTH</code>')
+    await q.delete()
     file_mode = a.text.lower()
     output = file_options.get(file_mode, None)
     if output is None:
-        await a.reply_text("Wrong file format option. You have to choose from the given options.")
-        return
+        await a.reply_text('Wrong File Format Option. You have to choose between the options i gave.')
+        return 
 
     await add_manga_options(str(manga_chat), output)
-
-    q, a = await bot_ask(
-        message,
-        'Send a custom filename for new chapters in this sub.\n\nThis must contain these tags:\n- <code>{chapter_title}</code>\n- <code>{manga_title}</code>\n\ne.g - "<code>{chapter_title} {manga_title}</code>"\n\n<i>/skip</i> <i>to have default filename.</i>'
-    )
-    custom_filename = a.text.strip()
-    if custom_filename.lower() in ["/skip", "none"]:
-        custom_filename = None
-    elif "{chapter_title}" not in custom_filename:
-        return await a.reply("Incorrect filename format. You must include the <code>{chapter_title}</code> tag.")
-
-    q, a = await bot_ask(
-        message,
-        "Send a custom caption to set on new chapter files.\n\n<i>Reply with /skip to set no caption.</i>",
-    )
-    custom_caption = a.text.html.strip()
-    if custom_caption.lower() in ["/skip", "none"]:
-        custom_caption = None
-
+        
+    db = DB()
     sub = await db.get(Subscription, (manga_url, str(manga_chat)))
     if sub:
         await message.reply("Subscription already exists!")
         return
+    
+    await db.add(Subscription(url=manga_url, user_id=str(manga_chat)))
 
-    await db.add(Subscription(url=manga_url, user_id=str(manga_chat), custom_caption=custom_caption, custom_filename=custom_filename))
-
-    text = "**Added New Manga Subscription.**"
-    text += "\n"
-    text += f"\n**›› URL →** `{manga_url}`"
-    text += f"\n**›› Chat →** `{manga_chat}`"
-    text += f"\n**›› File Mode →** `{file_mode.upper()}`"
-    text += f"\n**›› Custom Filename →** `{custom_filename}`" if custom_filename else ""
-    text += f"\n**›› Custom File Caption →** `{custom_caption}`" if custom_caption else ""
-    await message.reply(text, parse_mode=ParseMode.MARKDOWN)
-
-    if not db_manga:
-        await db.add(MangaName(url=manga_url, name=manga_card.name))
+    await message.reply(f"<b>Added New Manga Subscription.</b>\n\n<b>›› Url →</b> <code>{manga_url}</code>\n<b>›› Chat →</b> <code>{manga_chat}</code>\n<b>›› File Mode →</b> <code>{file_mode.upper()}</code>")
 
 
-@bot.on_message(filters=filters.command("rmsub") &
-                filters.user(ALLOWED_USERS), group=1)
+@bot.on_message(filters=filters.command("rmsub") & filters.user(ALLOWED_USERS), group=1)
 async def rmsub_handler(client, message):
     try:
         _, url, chat = message.text.split(" ")
     except ValueError:
-        return
-
-    url, card = get_manga_url(url)
+        return 
+    
+    url = get_manga_url(url)
     db = DB()
     sub = await db.get(Subscription, (url, chat))
     if not sub:
         await message.reply_text("Subscription doesn't exist!")
         return
     await db.erase(sub)
-    await message.reply_text("Removed the subscription.")
-
-
-@bot.on_message(filters=filters.command("setthumb") & filters.user(ALLOWED_USERS), group = 1)
-async def set_manga_thumb(client, message):
-    reply=message.reply_to_message
-    if len(message.command) < 2:
-        return await message.reply("Either reply to a photo with manga Url or provide both manga Url and thumb Url.")
-
-    manga_url, manga_card=get_manga_url(message.command[1])
-    if requires_card_or_api(manga_url):
-        return await message.reply("To set thumb, please do a quick search of the manga in relevant extension OR provide correct (api) Url.")
-    if reply and reply.photo:
-        temp=await reply.download()
-        tclient=Telegraph()
-        thumb_url="https://graph.org" + (await tclient.upload_file(temp))[0]["src"]
-        os.remove(temp)
-    elif len(message.command) == 3:
-        thumb_url=message.command[2]
-    else:
-        return await message.reply("Either reply to a photo with manga Url or provide both manga Url and thumb Url.")
-
-    db=DB()
-    db_thumb=await db.get(MangaPicture, manga_url)
-    if db_thumb:
-        db_thumb.url=thumb_url
-    else:
-        db_thumb=MangaPicture(manga_url = manga_url, url = thumb_url)
-    await db.add(db_thumb)
-    text="**Updated the MangaPicture**\n"
-    text += f"\n**›› URL →** `{manga_url}`"
-    text += f"\n**›› Picture Url →** `{thumb_url}`"
-    await message.reply(text)
-    if manga_card:
-        await get_manga_thumb(manga_card, refresh=True)
-
-
-@bot.on_message(filters = filters.command("delthumb") &
-                filters.user(ALLOWED_USERS), group = 1)
-async def del_manga_thumb(client, message):
-    if len(message.command) < 2:
-        return
-    manga_url, manga_card=get_manga_url(message.command[1])
-    db=DB()
-    db_thumb=await db.get(MangaPicture, manga_card)
-    if not db_thumb:
-        return await message.reply("Thumb not found.")
-    await db.erase(db_thumb)
-    await message.reply("Removed the thumb.")
-    if manga_card:
-        await get_manga_thumb(manga_card, refresh=True)
-
-
-@bot.on_message(filters = filters.command("eval") &
-                filters.user(ALLOWED_USERS), group = 1)
+    await message.reply_text("Removed the Subscription.")
+    
+    
+@bot.on_message(filters=filters.command("eval") & filters.user(ALLOWED_USERS), group=1)
 async def _(client, message):
-    status_message=await message.reply_text("Processing ...")
+    status_message = await message.reply_text("Processing ...")
     try:
-        cmd=message.text.markdown.split(" ", maxsplit = 1)[1]
-    except BaseException:
+        cmd = message.text.markdown.split(" ", maxsplit=1)[1]
+    except:
         return await status_message.edit_text("Give code to evaluate...")
 
-    reply_to_=message
+    reply_to_ = message
     if message.reply_to_message:
-        reply_to_=message.reply_to_message
+        reply_to_ = message.reply_to_message
 
-    old_stderr=sys.stderr
-    old_stdout=sys.stdout
-    redirected_output=sys.stdout=io.StringIO()
-    redirected_error=sys.stderr=io.StringIO()
-    stdout, stderr, exc=None, None, None
+    old_stderr = sys.stderr
+    old_stdout = sys.stdout
+    redirected_output = sys.stdout = io.StringIO()
+    redirected_error = sys.stderr = io.StringIO()
+    stdout, stderr, exc = None, None, None
 
     try:
         await aexec(cmd, client, message)
     except Exception:
-        exc=traceback.format_exc()
+        exc = traceback.format_exc()
 
-    stdout=redirected_output.getvalue()
-    stderr=redirected_error.getvalue()
-    sys.stdout=old_stdout
-    sys.stderr=old_stderr
+    stdout = redirected_output.getvalue()
+    stderr = redirected_error.getvalue()
+    sys.stdout = old_stdout
+    sys.stderr = old_stderr
 
-    evaluation=""
+    evaluation = ""
     if exc:
-        evaluation=exc
+        evaluation = exc
     elif stderr:
-        evaluation=stderr
+        evaluation = stderr
     elif stdout:
-        evaluation=stdout
+        evaluation = stdout
     else:
-        evaluation="Success"
+        evaluation = "Success"
 
-    final_output="**EVAL**: "
+    final_output = "**EVAL**: "
     final_output += f"`{cmd}`\n\n"
     final_output += "**OUTPUT**:\n"
     final_output += f"`{evaluation.strip()}`\n"
 
     if len(final_output) > MAX_MESSAGE_LENGTH:
         with io.BytesIO(str.encode(evaluation)) as out_file:
-            out_file.name="eval.text"
+            out_file.name = "eval.text"
             await reply_to_.reply_document(
-                document = out_file,
-                caption = f"`{cmd[: MAX_MESSAGE_LENGTH // 4 - 1]}`",
-                disable_notification = True,
-                parse_mode = ParseMode.MARKDOWN,
-                quote = True,
+                document=out_file,
+                caption=f"`{cmd[: MAX_MESSAGE_LENGTH // 4 - 1]}`",
+                disable_notification=True,
+                parse_mode=ParseMode.MARKDOWN,
+                quote=True,
             )
     else:
         await reply_to_.reply_text(final_output, parse_mode=ParseMode.MARKDOWN, quote=True)
     await status_message.delete()
-
 
 async def aexec(code, client, message):
     exec(
